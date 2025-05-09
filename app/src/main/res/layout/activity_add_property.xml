@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:backgroundTint="@color/white"
+    tools:context=".add_property">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Title -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Add Property Details"
+                android:layout_marginTop="20dp"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_gravity="center"
+                android:paddingBottom="16dp"/>
+
+            <!-- Property Name -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Property Name">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPropertyName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Address -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:hint="Address">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPostalAddress" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Property Type -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Property Type"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"/>
+            <Spinner
+                android:id="@+id/spinnerPropertyType"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="5dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:padding="10dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerHouseType"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="5dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:padding="10dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerCity"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="5dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:padding="10dp"/>
+
+
+            <!-- Owner's Contact Number -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Owner's Contact No."
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etOwnerContact"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Furnishing Type"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"/>
+            <RadioGroup
+                android:id="@+id/rgFurnishingType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="5dp">
+
+                <RadioButton
+                    android:id="@+id/rbFurnished"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Furnished" />
+
+                <RadioButton
+                    android:id="@+id/rbSemiFurnished"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Semi-Furnished" />
+
+                <RadioButton
+                    android:id="@+id/rbNonFurnished"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Non-Furnished" />
+            </RadioGroup>
+
+            <!-- Available Facilities -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Available Facilities"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"/>
+
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="3"
+                android:rowCount="3"
+                android:paddingTop="5dp">
+
+                <CheckBox android:id="@+id/cbParking" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Parking"/>
+                <CheckBox android:id="@+id/cbWifi" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="WiFi"/>
+                <CheckBox android:id="@+id/cbSecurity" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Security"/>
+                <CheckBox android:id="@+id/cbGym" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gym"/>
+                <CheckBox android:id="@+id/cbPool" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pool"/>
+                <CheckBox android:id="@+id/cbGarden" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Garden"/>
+                <CheckBox android:id="@+id/cbLift" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Lift"/>
+                <CheckBox android:id="@+id/cbBackup" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Power Backup"/>
+                <CheckBox android:id="@+id/cbCCTV" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CCTV"/>
+                <CheckBox android:id="@+id/cbClubhouse" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Clubhouse"/>
+            </GridLayout>
+
+            <!-- Additional Information -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Upload Property Photos (Min 5)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvPropertyImages"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="16dp"
+                    android:padding="8dp"
+                    android:scrollbars="vertical"
+                    android:nestedScrollingEnabled="true"/>
+
+                <Button
+                    android:id="@+id/btnSelectImages"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Images"
+                    android:textColor="@color/black"
+                    android:backgroundTint="@color/white"
+                    android:drawablePadding="8dp"
+                    android:layout_marginTop="16dp"/>
+
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btnSubmit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Submit"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="@color/black"
+                android:textColor="@android:color/white"/>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
