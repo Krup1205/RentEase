@@ -56,7 +56,7 @@ public class add_property extends AppCompatActivity {
                     }
                     imageAdapter.notifyDataSetChanged();
                     if (imageList.size() < MIN_IMAGE_COUNT) {
-                        Toast.makeText(add_property.this, "Please select at least 5 images!", Toast.LENGTH_SHORT).show();
+                        showToast("Please select at least 5 images!");
                     }
                 }
             });
@@ -89,7 +89,7 @@ public class add_property extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedPropertyType = parent.getItemAtPosition(position).toString();
-                Toast.makeText(add_property.this, "Selected: " + selectedPropertyType, Toast.LENGTH_SHORT).show();
+                // Removed unnecessary Toast
             }
 
             @Override
@@ -98,7 +98,7 @@ public class add_property extends AppCompatActivity {
 
         findViewById(R.id.btnSubmit).setOnClickListener(v -> {
             if (imageList.size() < MIN_IMAGE_COUNT) {
-                Toast.makeText(add_property.this, "Please select at least 5 images!", Toast.LENGTH_SHORT).show();
+                showToast("Please select at least 5 images!");
                 return;
             }
             uploadProperty();
@@ -141,7 +141,7 @@ public class add_property extends AppCompatActivity {
         String propertyId = dbRef.push().getKey();
 
         if (propertyId == null) {
-            Toast.makeText(add_property.this, "Error generating property ID", Toast.LENGTH_SHORT).show();
+            showToast("Error generating property ID");
             return;
         }
 
@@ -176,16 +176,16 @@ public class add_property extends AppCompatActivity {
                                 dbRef.child(propertyId).setValue(property).addOnCompleteListener(task2 -> {
                                     progressDialog.dismiss();
                                     if (task2.isSuccessful()) {
-                                        Toast.makeText(add_property.this, "Property submitted successfully!", Toast.LENGTH_SHORT).show();
+                                        showToast("Property submitted successfully!");
                                         clearForm();
                                     } else {
-                                        Toast.makeText(add_property.this, "Failed to submit property.", Toast.LENGTH_SHORT).show();
+                                        showToast("Failed to submit property.");
                                     }
                                 });
                             }
                         } else {
                             progressDialog.dismiss();
-                            Toast.makeText(add_property.this, "Image upload failed: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            showToast("Image upload failed: " + task.getException().getMessage());
                         }
                     });
         }
@@ -213,6 +213,10 @@ public class add_property extends AppCompatActivity {
 
         imageList.clear();
         imageAdapter.notifyDataSetChanged();
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(add_property.this, message, Toast.LENGTH_SHORT).show();
     }
 
     public class Property {

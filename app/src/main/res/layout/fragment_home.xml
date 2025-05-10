@@ -1,17 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".HomeFragment"
-    android:background="@color/material_dynamic_neutral_variant30">
+    tools:context=".HomeFragment">
 
-    <!-- TODO: Update blank fragment layout -->
+    <!-- Search Bar at the top -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/searchView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/search_background"
+        android:layout_margin="8dp"
+        android:iconifiedByDefault="false"
+        android:queryHint="Search properties..." />
+
+    <!-- ListView to display properties -->
+    <ListView
+        android:id="@+id/propertyListView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/searchView"
+        android:divider="#EEEEEE"
+        android:dividerHeight="1dp" />
+
+    <!-- Empty view when list is empty -->
     <TextView
+        android:id="@+id/emptyView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/hello_blank_fragment"
-        android:layout_gravity="center"
-        android:textColor="@color/white"/>
+        android:layout_centerInParent="true"
+        android:text="No properties found"
+        android:textSize="18sp"
+        android:visibility="gone" />
 
-</FrameLayout>
+</RelativeLayout>
