@@ -4,10 +4,7 @@
         android:id="@+id/home"
         android:title="Home"
         android:icon="@drawable/home"/>
-    <item
-        android:id="@+id/favourite"
-        android:title="Favourites"
-        android:icon="@drawable/like"/>
+
     <item
         android:id="@+id/properties"
         android:title="Properties"

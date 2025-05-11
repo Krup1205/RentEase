@@ -23,7 +23,9 @@
         android:layout_height="match_parent"
         android:layout_below="@id/searchView"
         android:divider="#EEEEEE"
-        android:dividerHeight="1dp" />
+        android:dividerHeight="1dp"
+        android:paddingTop="10dp"
+        />
 
     <!-- Empty view when list is empty -->
     <TextView
