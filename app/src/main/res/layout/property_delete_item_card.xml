@@ -17,14 +17,16 @@
             android:orientation="horizontal">
 
             <!-- Property Image -->
+
+            <!-- Property Details -->
             <ImageView
                 android:id="@+id/propertyImage"
                 android:layout_width="120dp"
                 android:layout_height="120dp"
                 android:scaleType="centerCrop"
+                android:layout_marginTop="12dp"
                 android:src="@drawable/ic_home_placeholder" />
 
-            <!-- Property Details -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
