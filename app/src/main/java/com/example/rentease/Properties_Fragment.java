@@ -18,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -36,6 +37,7 @@ import java.util.List;
 
 public class Properties_Fragment extends Fragment {
     private static final String TAG = "Properties_Fragment";
+    private static final boolean DEBUG = true; // Set to false in production
 
     // UI Components
     private Button addButton;
@@ -44,6 +46,7 @@ public class Properties_Fragment extends Fragment {
     private SearchView searchView;
     private View loadingOverlay;
     private TextView loadingText;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     // Data
     private List<Property> propertyList;
@@ -63,6 +66,9 @@ public class Properties_Fragment extends Fragment {
             // This will run if loading takes too long (10 seconds)
             if (isAdded() && getContext() != null) {
                 hideLoadingUI();
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
                 Toast.makeText(getContext(), "Loading timed out. Please check your internet connection.",
                         Toast.LENGTH_LONG).show();
 
@@ -74,7 +80,7 @@ public class Properties_Fragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_properties_, container, false);
-        Log.d(TAG, "onCreateView: Initializing Properties Fragment");
+        if (DEBUG) Log.d(TAG, "onCreateView: Initializing Properties Fragment");
 
         // Initialize Firebase
         mAuth = FirebaseAuth.getInstance();
@@ -84,18 +90,49 @@ public class Properties_Fragment extends Fragment {
         // Get current user ID and verify it's not null
         if (currentUser != null) {
             currentUserId = currentUser.getUid();
-            Log.d(TAG, "Current user ID: " + currentUserId);
+            if (DEBUG) Log.d(TAG, "Current user ID: " + currentUserId);
         } else {
             Log.e(TAG, "User is not logged in");
             Toast.makeText(getContext(), "Please log in to view your properties", Toast.LENGTH_LONG).show();
         }
 
         // Initialize views
+        initializeViews(view);
+
+        return view;
+    }
+
+    private void initializeViews(View view) {
         addButton = view.findViewById(R.id.add);
         propertyListView = view.findViewById(R.id.myPropertyListView);
         emptyView = view.findViewById(R.id.myPropertiesEmptyView);
         searchView = view.findViewById(R.id.myPropertiesSearchView);
         loadingOverlay = view.findViewById(R.id.loadingOverlay);
+
+        // Initialize optional SwipeRefreshLayout if available in your layout
+        try {
+            swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
+            if (swipeRefreshLayout != null) {
+                swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+                    @Override
+                    public void onRefresh() {
+                        if (DEBUG) Log.d(TAG, "onRefresh called");
+                        if (currentUserId != null) {
+                            loadUserProperties();
+                        } else {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
+                    }
+                });
+                swipeRefreshLayout.setColorSchemeResources(
+                        android.R.color.holo_blue_bright,
+                        android.R.color.holo_green_light,
+                        android.R.color.holo_orange_light,
+                        android.R.color.holo_red_light);
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "SwipeRefreshLayout not found in layout");
+        }
 
         // Initialize loading text if available
         try {
@@ -120,7 +157,9 @@ public class Properties_Fragment extends Fragment {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Property selectedProperty = adapter.getItem(position);
-                navigateToPropertyDetails(selectedProperty);
+                if (selectedProperty != null) {
+                    navigateToPropertyDetails(selectedProperty);
+                }
             }
         });
 
@@ -134,7 +173,9 @@ public class Properties_Fragment extends Fragment {
 
                 @Override
                 public boolean onQueryTextChange(String newText) {
-                    adapter.getFilter().filter(newText);
+                    if (adapter != null) {
+                        adapter.getFilter().filter(newText);
+                    }
                     return true;
                 }
             });
@@ -144,13 +185,11 @@ public class Properties_Fragment extends Fragment {
         addButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d(TAG, "Add button clicked");
+                if (DEBUG) Log.d(TAG, "Add button clicked");
                 Intent intent = new Intent(getContext(), add_property.class);
                 startActivity(intent);
             }
         });
-
-        return view;
     }
 
     @Override
@@ -165,7 +204,7 @@ public class Properties_Fragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "onResume: Refreshing property list");
+        if (DEBUG) Log.d(TAG, "onResume: Refreshing property list");
         // Refresh property list when fragment resumes
         if (currentUserId != null) {
             loadUserProperties();
@@ -193,6 +232,9 @@ public class Properties_Fragment extends Fragment {
                     // Not connected to Firebase
                     timeoutHandler.removeCallbacks(timeoutRunnable);
                     hideLoadingUI();
+                    if (swipeRefreshLayout != null) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                     if (isAdded() && getContext() != null) {
                         Toast.makeText(getContext(), "No internet connection. Please check your network.",
                                 Toast.LENGTH_SHORT).show();
@@ -206,6 +248,9 @@ public class Properties_Fragment extends Fragment {
                 Log.e(TAG, "Connection check failed: " + error.getMessage());
                 timeoutHandler.removeCallbacks(timeoutRunnable);
                 hideLoadingUI();
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
                 showEmptyState("Connection error: " + error.getMessage());
             }
         });
@@ -214,7 +259,7 @@ public class Properties_Fragment extends Fragment {
     private void fetchPropertiesFromFirebase() {
         // Reference to the user's properties
         DatabaseReference propertiesRef = mDatabase.child("properties").child(currentUserId);
-        Log.d(TAG, "Loading user properties from: " + propertiesRef.toString());
+        if (DEBUG) Log.d(TAG, "Loading user properties from: " + propertiesRef.toString());
 
         propertiesRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -223,21 +268,24 @@ public class Properties_Fragment extends Fragment {
                 timeoutHandler.removeCallbacks(timeoutRunnable);
 
                 try {
-                    propertyList.clear();
-                    Log.d(TAG, "onDataChange: Properties node exists: " + dataSnapshot.exists());
-                    Log.d(TAG, "onDataChange: Found " + dataSnapshot.getChildrenCount() + " properties");
+                    List<Property> newPropertyList = new ArrayList<>();
+
+                    if (DEBUG) {
+                        Log.d(TAG, "onDataChange: Properties node exists: " + dataSnapshot.exists());
+                        Log.d(TAG, "onDataChange: Found " + dataSnapshot.getChildrenCount() + " properties");
+                    }
 
                     for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                         try {
-                            Log.d(TAG, "Property key: " + snapshot.getKey());
+                            if (DEBUG) Log.d(TAG, "Property key: " + snapshot.getKey());
 
                             Property property = snapshot.getValue(Property.class);
                             if (property != null) {
                                 // Store the property ID for deletion
                                 String propertyId = snapshot.getKey();
-                                Log.d(TAG, "Loaded property: " + property.getPropertyName() + " with ID: " + propertyId);
+                                if (DEBUG) Log.d(TAG, "Loaded property: " + property.getPropertyName() + " with ID: " + propertyId);
                                 property.setId(propertyId);
-                                propertyList.add(property);
+                                newPropertyList.add(property);
                             } else {
                                 Log.e(TAG, "Failed to parse property at key: " + snapshot.getKey());
                             }
@@ -246,20 +294,38 @@ public class Properties_Fragment extends Fragment {
                         }
                     }
 
-                    // Update adapter
-                    adapter.updatePropertyList(propertyList);
+                    // Update adapter on the UI thread
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // Update the adapter with the new list
+                                if (adapter != null) {
+                                    adapter.updatePropertyList(newPropertyList);
+                                }
 
-                    // Show/hide empty view
-                    if (propertyList.isEmpty()) {
-                        Log.d(TAG, "No properties found after parsing, showing empty view");
-                        showEmptyState("You don't have any properties yet. Click the '+' button to add one.");
-                    } else {
-                        Log.d(TAG, "Found " + propertyList.size() + " properties, hiding empty view");
-                        hideEmptyState();
+                                // Show/hide empty view
+                                if (newPropertyList.isEmpty()) {
+                                    if (DEBUG) Log.d(TAG, "No properties found after parsing, showing empty view");
+                                    showEmptyState("You don't have any properties yet. Click the '+' button to add one.");
+                                } else {
+                                    if (DEBUG) Log.d(TAG, "Found " + newPropertyList.size() + " properties, hiding empty view");
+                                    hideEmptyState();
+                                }
+
+                                // Hide refresh indicator if present
+                                if (swipeRefreshLayout != null) {
+                                    swipeRefreshLayout.setRefreshing(false);
+                                }
+                            }
+                        });
                     }
                 } catch (Exception e) {
                     Log.e(TAG, "Error processing property data: " + e.getMessage());
                     showEmptyState("Error loading properties. Please try again.");
+                    if (swipeRefreshLayout != null) {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
                 } finally {
                     // Always hide loading UI when done
                     hideLoadingUI();
@@ -273,6 +339,10 @@ public class Properties_Fragment extends Fragment {
 
                 Log.e(TAG, "loadProperties:onCancelled", databaseError.toException());
                 hideLoadingUI();
+
+                if (swipeRefreshLayout != null) {
+                    swipeRefreshLayout.setRefreshing(false);
+                }
 
                 if (isAdded() && getContext() != null) {
                     Toast.makeText(getContext(), "Failed to load properties: " + databaseError.getMessage(),
@@ -291,7 +361,15 @@ public class Properties_Fragment extends Fragment {
             return;
         }
 
-        Log.d(TAG, "Deleting property with ID: " + propertyId);
+        if (DEBUG) Log.d(TAG, "Deleting property with ID: " + propertyId);
+
+        // Get the property before removing from list (for image deletion)
+        Property propertyToDelete = null;
+        if (position >= 0 && position < propertyList.size()) {
+            propertyToDelete = propertyList.get(position);
+        }
+
+        final Property finalPropertyToDelete = propertyToDelete;
 
         // Reference to the property to delete
         DatabaseReference propertyRef = mDatabase.child("properties").child(currentUserId).child(propertyId);
@@ -300,20 +378,27 @@ public class Properties_Fragment extends Fragment {
             @Override
             public void onSuccess(Void aVoid) {
                 // Delete success
-                Log.d(TAG, "Property deleted successfully from database");
-                Toast.makeText(getContext(), "Property deleted successfully", Toast.LENGTH_SHORT).show();
+                if (DEBUG) Log.d(TAG, "Property deleted successfully from database");
+
+                if (isAdded() && getContext() != null) {
+                    Toast.makeText(getContext(), "Property deleted successfully", Toast.LENGTH_SHORT).show();
+                }
 
                 // Also delete the property images if they exist
-                Property property = propertyList.get(position);
-                deletePropertyImages(property);
+                if (finalPropertyToDelete != null) {
+                    deletePropertyImages(finalPropertyToDelete);
+                }
             }
         }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
                 // Delete failure
                 Log.e(TAG, "Failed to delete property: " + e.getMessage());
-                Toast.makeText(getContext(), "Failed to delete property: " + e.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+
+                if (isAdded() && getContext() != null) {
+                    Toast.makeText(getContext(), "Failed to delete property: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
     }
@@ -321,7 +406,7 @@ public class Properties_Fragment extends Fragment {
     // Delete property images from Firebase Storage
     private void deletePropertyImages(Property property) {
         if (property == null || property.getImageUrls() == null || property.getImageUrls().isEmpty()) {
-            Log.d(TAG, "No images to delete");
+            if (DEBUG) Log.d(TAG, "No images to delete");
             return;
         }
 
@@ -329,12 +414,12 @@ public class Properties_Fragment extends Fragment {
             if (imageUrl != null && !imageUrl.isEmpty()) {
                 try {
                     StorageReference imageRef = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl);
-                    Log.d(TAG, "Deleting image: " + imageUrl);
+                    if (DEBUG) Log.d(TAG, "Deleting image: " + imageUrl);
 
                     imageRef.delete().addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
-                            Log.d(TAG, "Image deleted successfully");
+                            if (DEBUG) Log.d(TAG, "Image deleted successfully");
                         }
                     }).addOnFailureListener(new OnFailureListener() {
                         @Override
@@ -349,9 +434,7 @@ public class Properties_Fragment extends Fragment {
         }
     }
 
-    /**
-     * Method to navigate to property details page
-     */
+
     private void navigateToPropertyDetails(Property property) {
         // Example implementation (uncomment and modify as needed for your app)
         /*

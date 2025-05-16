@@ -14,7 +14,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.collection.LruCache;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -27,7 +26,7 @@ import java.util.concurrent.Executors;
 
 public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filterable {
     private static final String TAG = "MyPropertyAdapter";
-    private static final boolean DEBUG = false; // Set to false in production
+    private static final boolean DEBUG = true; // Set to true for easier debugging
 
     private Context context;
     private List<Property> propertyList;
@@ -35,7 +34,6 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
     private Properties_Fragment fragmentReference;
     private final Executor backgroundExecutor = Executors.newSingleThreadExecutor();
     private final LayoutInflater inflater;
-    private final int viewResourceId = R.layout.property_delete_item_card;
 
     // ViewHolder pattern for smoother scrolling
     private static class ViewHolder {
@@ -49,7 +47,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
     }
 
     public MyPropertyAdapter(Context context, List<Property> propertyList) {
-        super(context, 0, propertyList);
+        super(context, R.layout.property_delete_item_card, propertyList);
         this.context = context;
         this.inflater = LayoutInflater.from(context);
 
@@ -65,6 +63,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
 
     public void setFragmentReference(Properties_Fragment fragment) {
         this.fragmentReference = fragment;
+        if (DEBUG) Log.d(TAG, "Fragment reference set");
     }
 
     @NonNull
@@ -72,9 +71,11 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
         ViewHolder holder;
 
+        if (DEBUG) Log.d(TAG, "getView called for position: " + position);
+
         try {
             if (convertView == null) {
-                convertView = inflater.inflate(viewResourceId, parent, false);
+                convertView = inflater.inflate(R.layout.property_delete_item_card, parent, false);
 
                 // Set up ViewHolder to avoid repeated findViewById calls
                 holder = new ViewHolder();
@@ -90,6 +91,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                 if (DEBUG) Log.d(TAG, "Created new view for position " + position);
             } else {
                 holder = (ViewHolder) convertView.getTag();
+                if (DEBUG) Log.d(TAG, "Reusing view for position " + position);
             }
 
             if (position >= filteredPropertyList.size()) {
@@ -103,6 +105,8 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                 return convertView;
             }
 
+            if (DEBUG) Log.d(TAG, "Binding data for property: " + currentProperty.getPropertyName());
+
             // Set text data with null checks
             holder.name.setText(currentProperty.getPropertyName());
             holder.location.setText(currentProperty.getCity() + ", " + currentProperty.getAddress());
@@ -113,16 +117,18 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
             // Load image using Glide with optimized settings
             String imageUrl = currentProperty.getFirstImageUrl();
             if (imageUrl != null && !imageUrl.isEmpty()) {
+                if (DEBUG) Log.d(TAG, "Loading image from URL: " + imageUrl);
+
                 Glide.with(context)
                         .load(imageUrl)
                         .apply(new RequestOptions()
                                 .placeholder(R.drawable.ic_home_placeholder)
                                 .error(R.drawable.ic_home_placeholder)
                                 .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC) // More efficient caching strategy
-                                .centerCrop()  // Better image fitting
-                                .override(300, 300)) // Control image size to prevent large loads
+                                .centerCrop())  // Better image fitting
                         .into(holder.imageView);
             } else {
+                if (DEBUG) Log.d(TAG, "No image URL, using placeholder for: " + currentProperty.getPropertyName());
                 holder.imageView.setImageResource(R.drawable.ic_home_placeholder);
             }
 
@@ -131,10 +137,14 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
             holder.deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    if (DEBUG) Log.d(TAG, "Delete button clicked for position " + propertyPosition);
+
                     if (fragmentReference != null) {
                         // Get the original position in the unfiltered list
                         int originalPosition = propertyList.indexOf(currentProperty);
                         if (originalPosition != -1) {
+                            if (DEBUG) Log.d(TAG, "Calling deleteProperty with ID: " + currentProperty.getId() +
+                                    ", position: " + originalPosition);
                             fragmentReference.deleteProperty(currentProperty.getId(), originalPosition);
                         } else {
                             if (DEBUG) Log.e(TAG, "Property not found in original list");
@@ -146,10 +156,10 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
             });
 
         } catch (Exception e) {
-            if (DEBUG) Log.e(TAG, "Error in getView: " + e.getMessage(), e);
+            Log.e(TAG, "Error in getView: " + e.getMessage(), e);
             // Return a default view if there's an error
             if (convertView == null) {
-                convertView = inflater.inflate(viewResourceId, parent, false);
+                convertView = inflater.inflate(R.layout.property_delete_item_card, parent, false);
             }
         }
 
@@ -170,6 +180,8 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
     }
 
     public void updatePropertyList(final List<Property> newList) {
+        if (DEBUG) Log.d(TAG, "updatePropertyList called with " + (newList != null ? newList.size() : 0) + " items");
+
         // Handle UI updates on the main thread, but process data in background
         backgroundExecutor.execute(new Runnable() {
             @Override
@@ -180,7 +192,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                     for (Property property : newList) {
                         if (property != null) {
                             validProperties.add(property);
-                            // Only log in debug mode to prevent performance impact
+                            // Log each property for debugging
                             if (DEBUG) property.logAllFields();
                         }
                     }
@@ -199,6 +211,8 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                             if (DEBUG) Log.d(TAG, "Property list updated, now contains " + propertyList.size() + " items");
                         }
                     });
+                } else {
+                    if (DEBUG) Log.e(TAG, "Context is not an Activity, can't update UI");
                 }
             }
         });
@@ -215,9 +229,11 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                 if (constraint == null || constraint.length() == 0) {
                     // No filter, return all items
                     filteredList.addAll(propertyList);
+                    if (DEBUG) Log.d(TAG, "No filter constraint, showing all " + propertyList.size() + " properties");
                 } else {
                     // Convert constraint to lowercase once to avoid repeated conversions
                     String filterPattern = constraint.toString().toLowerCase().trim();
+                    if (DEBUG) Log.d(TAG, "Filtering properties with pattern: " + filterPattern);
 
                     for (Property property : propertyList) {
                         if (property == null) continue;
@@ -227,6 +243,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                             filteredList.add(property);
                         }
                     }
+                    if (DEBUG) Log.d(TAG, "Filter found " + filteredList.size() + " matches");
                 }
 
                 results.values = filteredList;
