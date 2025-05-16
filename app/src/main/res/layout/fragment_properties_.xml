@@ -1,45 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".Properties_Fragment"
-    android:background="@color/white"
-    android:orientation="vertical">
+    tools:context=".Properties_Fragment">
 
-    <!-- Property List View -->
-    <ListView
-        android:id="@+id/myPropertyListView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_alignParentTop="true"
-        android:layout_marginTop="8dp"
-        android:divider="@android:color/darker_gray"
-        android:dividerHeight="1dp"
-        tools:listitem="@layout/property_delete_item_card"/>
-
-    <!-- Empty View -->
-    <TextView
-        android:id="@+id/myPropertiesEmptyView"
-        android:layout_width="match_parent"
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/myPropertiesSearchView"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:text="You haven't added any properties yet"
-        android:textSize="16sp"
-        android:visibility="gone" />
+        android:layout_margin="8dp"
+        android:background="@drawable/search_background"
+        android:elevation="2dp"
+        app:iconifiedByDefault="false"
+        app:queryHint="Search your properties"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Add Property Button -->
     <Button
         android:id="@+id/add"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true"
         android:layout_margin="16dp"
+        android:text="Add New Property"
         android:backgroundTint="@color/black"
-        android:text="Add"
-        app:cornerRadius="5dp" />
+        android:drawablePadding="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/myPropertiesSearchView" />
 
-</RelativeLayout>
+    <ListView
+        android:id="@+id/myPropertyListView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:divider="@android:color/transparent"
+        android:dividerHeight="8dp"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/add" />
+
+    <TextView
+        android:id="@+id/myPropertiesEmptyView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:gravity="center"
+        android:text="You don't have any properties yet.\nClick the 'Add New Property' button to add your first property."
+        android:textSize="16sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/add" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

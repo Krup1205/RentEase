@@ -7,6 +7,9 @@ import java.util.List;
 public class Property {
     private static final String TAG = "Property";
 
+    // Private property ID field for Firebase operations
+    private String id;
+
     // Make sure property names match EXACTLY what's in Firebase
     public String propertyName, address, propertyType, houseType, city, ownerContact, furnishing;
     public List<String> facilities;
@@ -32,6 +35,16 @@ public class Property {
         this.facilities = facilities != null ? facilities : new ArrayList<>();
         this.imageUrls = imageUrls != null ? imageUrls : new ArrayList<>();
         Log.d(TAG, "Created property: " + propertyName);
+    }
+
+    // Getter and setter for ID (needed for Firebase operations)
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+        Log.d(TAG, "Set property ID: " + id + " for property: " + getPropertyName());
     }
 
     // Getters with null safety
@@ -85,7 +98,8 @@ public class Property {
     // Added for debugging - print all fields
     public void logAllFields() {
         Log.d(TAG, "Property Details - " +
-                "Name: " + propertyName +
+                "ID: " + id +
+                ", Name: " + propertyName +
                 ", Address: " + address +
                 ", City: " + city +
                 ", Type: " + propertyType +
@@ -98,7 +112,8 @@ public class Property {
     @Override
     public String toString() {
         return "Property{" +
-                "propertyName='" + propertyName + '\'' +
+                "id='" + id + '\'' +
+                ", propertyName='" + propertyName + '\'' +
                 ", city='" + city + '\'' +
                 ", propertyType='" + propertyType + '\'' +
                 ", imageUrls.size=" + (imageUrls != null ? imageUrls.size() : 0) +
