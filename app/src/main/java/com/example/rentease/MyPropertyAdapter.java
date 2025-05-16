@@ -14,6 +14,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.collection.LruCache;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -21,18 +22,36 @@ import com.bumptech.glide.request.RequestOptions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filterable {
     private static final String TAG = "MyPropertyAdapter";
+    private static final boolean DEBUG = false; // Set to false in production
 
     private Context context;
     private List<Property> propertyList;
     private List<Property> filteredPropertyList;
     private Properties_Fragment fragmentReference;
+    private final Executor backgroundExecutor = Executors.newSingleThreadExecutor();
+    private final LayoutInflater inflater;
+    private final int viewResourceId = R.layout.property_delete_item_card;
+
+    // ViewHolder pattern for smoother scrolling
+    private static class ViewHolder {
+        ImageView imageView;
+        TextView name;
+        TextView location;
+        TextView propertyType;
+        TextView houseType;
+        TextView furnishing;
+        ImageButton deleteButton;
+    }
 
     public MyPropertyAdapter(Context context, List<Property> propertyList) {
         super(context, 0, propertyList);
         this.context = context;
+        this.inflater = LayoutInflater.from(context);
 
         // Initialize with empty lists if null is passed
         this.propertyList = new ArrayList<>();
@@ -41,10 +60,7 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
         }
         this.filteredPropertyList = new ArrayList<>(this.propertyList);
 
-        // Remove the incorrect fragment reference check
-        // Fragment reference should be set explicitly using setFragmentReference
-
-        Log.d(TAG, "MyPropertyAdapter initialized with " + this.propertyList.size() + " properties");
+        if (DEBUG) Log.d(TAG, "MyPropertyAdapter initialized with " + this.propertyList.size() + " properties");
     }
 
     public void setFragmentReference(Properties_Fragment fragment) {
@@ -54,87 +70,90 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
     @NonNull
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-        View listItem = convertView;
+        ViewHolder holder;
 
         try {
-            if (listItem == null) {
-                listItem = LayoutInflater.from(context).inflate(R.layout.property_delete_item_card, parent, false);
-                Log.d(TAG, "Created new view for position " + position);
+            if (convertView == null) {
+                convertView = inflater.inflate(viewResourceId, parent, false);
+
+                // Set up ViewHolder to avoid repeated findViewById calls
+                holder = new ViewHolder();
+                holder.imageView = convertView.findViewById(R.id.propertyImage);
+                holder.name = convertView.findViewById(R.id.propertyName);
+                holder.location = convertView.findViewById(R.id.propertyLocation);
+                holder.propertyType = convertView.findViewById(R.id.propertyType);
+                holder.houseType = convertView.findViewById(R.id.propertyHouseType);
+                holder.furnishing = convertView.findViewById(R.id.propertyFurnishing);
+                holder.deleteButton = convertView.findViewById(R.id.deletePropertyButton);
+
+                convertView.setTag(holder);
+                if (DEBUG) Log.d(TAG, "Created new view for position " + position);
+            } else {
+                holder = (ViewHolder) convertView.getTag();
             }
 
             if (position >= filteredPropertyList.size()) {
-                Log.e(TAG, "Position out of bounds: " + position + ", list size: " + filteredPropertyList.size());
-                return listItem;
+                if (DEBUG) Log.e(TAG, "Position out of bounds: " + position + ", list size: " + filteredPropertyList.size());
+                return convertView;
             }
 
             final Property currentProperty = filteredPropertyList.get(position);
             if (currentProperty == null) {
-                Log.e(TAG, "Property at position " + position + " is null");
-                return listItem;
+                if (DEBUG) Log.e(TAG, "Property at position " + position + " is null");
+                return convertView;
             }
 
-            Log.d(TAG, "Getting view for property: " + currentProperty.getPropertyName() + " at position " + position);
-
-            ImageView imageView = listItem.findViewById(R.id.propertyImage);
-            TextView name = listItem.findViewById(R.id.propertyName);
-            TextView location = listItem.findViewById(R.id.propertyLocation);
-            TextView propertyType = listItem.findViewById(R.id.propertyType);
-            TextView houseType = listItem.findViewById(R.id.propertyHouseType);
-            TextView furnishing = listItem.findViewById(R.id.propertyFurnishing);
-            ImageButton deleteButton = listItem.findViewById(R.id.deletePropertyButton);
-
             // Set text data with null checks
-            name.setText(currentProperty.getPropertyName());
-            location.setText(currentProperty.getCity() + ", " + currentProperty.getAddress());
-            propertyType.setText(currentProperty.getPropertyType());
-            houseType.setText(currentProperty.getHouseType());
-            furnishing.setText(currentProperty.getFurnishing());
+            holder.name.setText(currentProperty.getPropertyName());
+            holder.location.setText(currentProperty.getCity() + ", " + currentProperty.getAddress());
+            holder.propertyType.setText(currentProperty.getPropertyType());
+            holder.houseType.setText(currentProperty.getHouseType());
+            holder.furnishing.setText(currentProperty.getFurnishing());
 
-            // Load image using Glide with error handling
+            // Load image using Glide with optimized settings
             String imageUrl = currentProperty.getFirstImageUrl();
             if (imageUrl != null && !imageUrl.isEmpty()) {
-                Log.d(TAG, "Loading image from URL: " + imageUrl);
                 Glide.with(context)
                         .load(imageUrl)
                         .apply(new RequestOptions()
                                 .placeholder(R.drawable.ic_home_placeholder)
                                 .error(R.drawable.ic_home_placeholder)
-                                .diskCacheStrategy(DiskCacheStrategy.ALL))
-                        .into(imageView);
+                                .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC) // More efficient caching strategy
+                                .centerCrop()  // Better image fitting
+                                .override(300, 300)) // Control image size to prevent large loads
+                        .into(holder.imageView);
             } else {
-                Log.d(TAG, "No image URL, using placeholder");
-                imageView.setImageResource(R.drawable.ic_home_placeholder);
+                holder.imageView.setImageResource(R.drawable.ic_home_placeholder);
             }
 
-            // Set click listener for delete button
-            deleteButton.setOnClickListener(new View.OnClickListener() {
+            // Set click listener for delete button - only set it once
+            final int propertyPosition = position;
+            holder.deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Log.d(TAG, "Delete button clicked for property: " + currentProperty.getPropertyName());
-
                     if (fragmentReference != null) {
                         // Get the original position in the unfiltered list
                         int originalPosition = propertyList.indexOf(currentProperty);
                         if (originalPosition != -1) {
                             fragmentReference.deleteProperty(currentProperty.getId(), originalPosition);
                         } else {
-                            Log.e(TAG, "Property not found in original list");
+                            if (DEBUG) Log.e(TAG, "Property not found in original list");
                         }
                     } else {
-                        Log.e(TAG, "Fragment reference is null, cannot delete property");
+                        if (DEBUG) Log.e(TAG, "Fragment reference is null, cannot delete property");
                     }
                 }
             });
 
         } catch (Exception e) {
-            Log.e(TAG, "Error in getView: " + e.getMessage(), e);
+            if (DEBUG) Log.e(TAG, "Error in getView: " + e.getMessage(), e);
             // Return a default view if there's an error
-            if (listItem == null) {
-                listItem = LayoutInflater.from(context).inflate(R.layout.property_delete_item_card, parent, false);
+            if (convertView == null) {
+                convertView = inflater.inflate(viewResourceId, parent, false);
             }
         }
 
-        return listItem;
+        return convertView;
     }
 
     @Override
@@ -150,21 +169,39 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
         return null;
     }
 
-    public void updatePropertyList(List<Property> newList) {
-        Log.d(TAG, "Updating property list with " + (newList != null ? newList.size() : 0) + " items");
-        this.propertyList.clear();
-        if (newList != null) {
-            for (Property property : newList) {
-                if (property != null) {
-                    this.propertyList.add(property);
-                    property.logAllFields(); // Log each property for debugging
+    public void updatePropertyList(final List<Property> newList) {
+        // Handle UI updates on the main thread, but process data in background
+        backgroundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                final List<Property> validProperties = new ArrayList<>();
+
+                if (newList != null) {
+                    for (Property property : newList) {
+                        if (property != null) {
+                            validProperties.add(property);
+                            // Only log in debug mode to prevent performance impact
+                            if (DEBUG) property.logAllFields();
+                        }
+                    }
+                }
+
+                // Update the UI on the main thread
+                if (context instanceof android.app.Activity) {
+                    ((android.app.Activity) context).runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            propertyList.clear();
+                            propertyList.addAll(validProperties);
+                            filteredPropertyList.clear();
+                            filteredPropertyList.addAll(propertyList);
+                            notifyDataSetChanged();
+                            if (DEBUG) Log.d(TAG, "Property list updated, now contains " + propertyList.size() + " items");
+                        }
+                    });
                 }
             }
-        }
-        this.filteredPropertyList.clear();
-        this.filteredPropertyList.addAll(this.propertyList);
-        notifyDataSetChanged();
-        Log.d(TAG, "Property list updated, now contains " + this.propertyList.size() + " items");
+        });
     }
 
     @Override
@@ -179,16 +216,14 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                     // No filter, return all items
                     filteredList.addAll(propertyList);
                 } else {
+                    // Convert constraint to lowercase once to avoid repeated conversions
                     String filterPattern = constraint.toString().toLowerCase().trim();
+
                     for (Property property : propertyList) {
                         if (property == null) continue;
 
-                        // Filter by property name, city, address, or property type
-                        if (property.getPropertyName().toLowerCase().contains(filterPattern) ||
-                                property.getCity().toLowerCase().contains(filterPattern) ||
-                                property.getAddress().toLowerCase().contains(filterPattern) ||
-                                property.getPropertyType().toLowerCase().contains(filterPattern) ||
-                                property.getHouseType().toLowerCase().contains(filterPattern)) {
+                        // Check if property matches filter criteria
+                        if (matchesFilter(property, filterPattern)) {
                             filteredList.add(property);
                         }
                     }
@@ -199,13 +234,29 @@ public class MyPropertyAdapter extends ArrayAdapter<Property> implements Filtera
                 return results;
             }
 
+            private boolean matchesFilter(Property property, String filterPattern) {
+                // Pre-convert property fields to lowercase to avoid multiple conversions
+                String propertyName = property.getPropertyName().toLowerCase();
+                String city = property.getCity().toLowerCase();
+                String address = property.getAddress().toLowerCase();
+                String propertyType = property.getPropertyType().toLowerCase();
+                String houseType = property.getHouseType().toLowerCase();
+
+                return propertyName.contains(filterPattern) ||
+                        city.contains(filterPattern) ||
+                        address.contains(filterPattern) ||
+                        propertyType.contains(filterPattern) ||
+                        houseType.contains(filterPattern);
+            }
+
             @Override
             protected void publishResults(CharSequence constraint, FilterResults results) {
                 filteredPropertyList.clear();
                 if (results != null && results.values != null) {
+                    //noinspection unchecked
                     filteredPropertyList.addAll((List<Property>) results.values);
                 }
-                Log.d(TAG, "Filter results updated, showing " + filteredPropertyList.size() + " properties");
+                if (DEBUG) Log.d(TAG, "Filter results updated, showing " + filteredPropertyList.size() + " properties");
                 notifyDataSetChanged();
             }
         };

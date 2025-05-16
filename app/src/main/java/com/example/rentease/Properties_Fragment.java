@@ -1,11 +1,10 @@
 package com.example.rentease;
 
-import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.appcompat.widget.SearchView;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,11 +13,16 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SearchView;
+import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -38,7 +42,8 @@ public class Properties_Fragment extends Fragment {
     private ListView propertyListView;
     private TextView emptyView;
     private SearchView searchView;
-    private ProgressDialog progressDialog;
+    private View loadingOverlay;
+    private TextView loadingText;
 
     // Data
     private List<Property> propertyList;
@@ -46,8 +51,25 @@ public class Properties_Fragment extends Fragment {
 
     // Firebase references
     private FirebaseAuth mAuth;
+    private FirebaseUser currentUser;
     private DatabaseReference mDatabase;
     private String currentUserId;
+
+    // Add timeout handling
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private final Runnable timeoutRunnable = new Runnable() {
+        @Override
+        public void run() {
+            // This will run if loading takes too long (10 seconds)
+            if (isAdded() && getContext() != null) {
+                hideLoadingUI();
+                Toast.makeText(getContext(), "Loading timed out. Please check your internet connection.",
+                        Toast.LENGTH_LONG).show();
+
+                showEmptyState("Connection timed out. Please try again.");
+            }
+        }
+    };
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -56,11 +78,12 @@ public class Properties_Fragment extends Fragment {
 
         // Initialize Firebase
         mAuth = FirebaseAuth.getInstance();
+        currentUser = mAuth.getCurrentUser();
         mDatabase = FirebaseDatabase.getInstance().getReference();
 
         // Get current user ID and verify it's not null
-        if (mAuth.getCurrentUser() != null) {
-            currentUserId = mAuth.getCurrentUser().getUid();
+        if (currentUser != null) {
+            currentUserId = currentUser.getUid();
             Log.d(TAG, "Current user ID: " + currentUserId);
         } else {
             Log.e(TAG, "User is not logged in");
@@ -71,7 +94,17 @@ public class Properties_Fragment extends Fragment {
         addButton = view.findViewById(R.id.add);
         propertyListView = view.findViewById(R.id.myPropertyListView);
         emptyView = view.findViewById(R.id.myPropertiesEmptyView);
-        searchView = view.findViewById(R.id.myPropertiesSearchView); // Make sure to add this to your layout
+        searchView = view.findViewById(R.id.myPropertiesSearchView);
+        loadingOverlay = view.findViewById(R.id.loadingOverlay);
+
+        // Initialize loading text if available
+        try {
+            loadingText = view.findViewById(R.id.loadingText);
+        } catch (Exception e) {
+            // It's fine if this doesn't exist
+            Log.d(TAG, "Loading text view not found");
+        }
+
         propertyList = new ArrayList<>();
 
         // Set empty view for ListView
@@ -117,12 +150,16 @@ public class Properties_Fragment extends Fragment {
             }
         });
 
-        // Load properties from Firebase
+        return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        // Load properties when the view is created
         if (currentUserId != null) {
             loadUserProperties();
         }
-
-        return view;
     }
 
     @Override
@@ -136,12 +173,45 @@ public class Properties_Fragment extends Fragment {
     }
 
     private void loadUserProperties() {
-        // Show loading indicator
-        progressDialog = new ProgressDialog(getContext());
-        progressDialog.setMessage("Loading your properties...");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        // Show loading UI
+        showLoadingUI();
 
+        // Set timeout to handle loading failures
+        timeoutHandler.removeCallbacks(timeoutRunnable);
+        timeoutHandler.postDelayed(timeoutRunnable, 10000); // 10 second timeout
+
+        // Check connection first
+        DatabaseReference connectedRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        connectedRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Boolean connected = snapshot.getValue(Boolean.class);
+                if (connected != null && connected) {
+                    // Connected to Firebase, proceed with loading
+                    fetchPropertiesFromFirebase();
+                } else {
+                    // Not connected to Firebase
+                    timeoutHandler.removeCallbacks(timeoutRunnable);
+                    hideLoadingUI();
+                    if (isAdded() && getContext() != null) {
+                        Toast.makeText(getContext(), "No internet connection. Please check your network.",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                    showEmptyState("No internet connection. Please check your network.");
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Connection check failed: " + error.getMessage());
+                timeoutHandler.removeCallbacks(timeoutRunnable);
+                hideLoadingUI();
+                showEmptyState("Connection error: " + error.getMessage());
+            }
+        });
+    }
+
+    private void fetchPropertiesFromFirebase() {
         // Reference to the user's properties
         DatabaseReference propertiesRef = mDatabase.child("properties").child(currentUserId);
         Log.d(TAG, "Loading user properties from: " + propertiesRef.toString());
@@ -149,59 +219,67 @@ public class Properties_Fragment extends Fragment {
         propertiesRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                propertyList.clear();
-                Log.d(TAG, "onDataChange: Properties node exists: " + dataSnapshot.exists());
-                Log.d(TAG, "onDataChange: Found " + dataSnapshot.getChildrenCount() + " properties");
+                // Clear timeout as we got data
+                timeoutHandler.removeCallbacks(timeoutRunnable);
 
-                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
-                    try {
-                        Log.d(TAG, "Property key: " + snapshot.getKey());
+                try {
+                    propertyList.clear();
+                    Log.d(TAG, "onDataChange: Properties node exists: " + dataSnapshot.exists());
+                    Log.d(TAG, "onDataChange: Found " + dataSnapshot.getChildrenCount() + " properties");
 
-                        Property property = snapshot.getValue(Property.class);
-                        if (property != null) {
-                            // Store the property ID for deletion
-                            String propertyId = snapshot.getKey();
-                            Log.d(TAG, "Loaded property: " + property.getPropertyName() + " with ID: " + propertyId);
-                            property.setId(propertyId);
-                            propertyList.add(property);
-                        } else {
-                            Log.e(TAG, "Failed to parse property at key: " + snapshot.getKey());
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        try {
+                            Log.d(TAG, "Property key: " + snapshot.getKey());
+
+                            Property property = snapshot.getValue(Property.class);
+                            if (property != null) {
+                                // Store the property ID for deletion
+                                String propertyId = snapshot.getKey();
+                                Log.d(TAG, "Loaded property: " + property.getPropertyName() + " with ID: " + propertyId);
+                                property.setId(propertyId);
+                                propertyList.add(property);
+                            } else {
+                                Log.e(TAG, "Failed to parse property at key: " + snapshot.getKey());
+                            }
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error parsing property data: " + e.getMessage(), e);
                         }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error parsing property data: " + e.getMessage(), e);
                     }
-                }
 
-                // Update adapter and dismiss loading dialog
-                adapter.updatePropertyList(propertyList);
+                    // Update adapter
+                    adapter.updatePropertyList(propertyList);
 
-                if (progressDialog != null && progressDialog.isShowing()) {
-                    progressDialog.dismiss();
-                }
-
-                // Show/hide empty view
-                if (propertyList.isEmpty()) {
-                    Log.d(TAG, "No properties found after parsing, showing empty view");
-                    emptyView.setVisibility(View.VISIBLE);
-                } else {
-                    Log.d(TAG, "Found " + propertyList.size() + " properties, hiding empty view");
-                    emptyView.setVisibility(View.GONE);
+                    // Show/hide empty view
+                    if (propertyList.isEmpty()) {
+                        Log.d(TAG, "No properties found after parsing, showing empty view");
+                        showEmptyState("You don't have any properties yet. Click the '+' button to add one.");
+                    } else {
+                        Log.d(TAG, "Found " + propertyList.size() + " properties, hiding empty view");
+                        hideEmptyState();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error processing property data: " + e.getMessage());
+                    showEmptyState("Error loading properties. Please try again.");
+                } finally {
+                    // Always hide loading UI when done
+                    hideLoadingUI();
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e(TAG, "loadProperties:onCancelled", databaseError.toException());
+                // Cancel timeout
+                timeoutHandler.removeCallbacks(timeoutRunnable);
 
-                if (progressDialog != null && progressDialog.isShowing()) {
-                    progressDialog.dismiss();
+                Log.e(TAG, "loadProperties:onCancelled", databaseError.toException());
+                hideLoadingUI();
+
+                if (isAdded() && getContext() != null) {
+                    Toast.makeText(getContext(), "Failed to load properties: " + databaseError.getMessage(),
+                            Toast.LENGTH_SHORT).show();
                 }
 
-                Toast.makeText(getContext(), "Failed to load properties: " + databaseError.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-
-                emptyView.setText("Error loading properties. Please try again.");
-                emptyView.setVisibility(View.VISIBLE);
+                showEmptyState("Error loading properties: " + databaseError.getMessage());
             }
         });
     }
@@ -293,12 +371,47 @@ public class Properties_Fragment extends Fragment {
         Toast.makeText(getContext(), details, Toast.LENGTH_LONG).show();
     }
 
+    private void showLoadingUI() {
+        if (loadingOverlay != null) {
+            loadingOverlay.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideLoadingUI() {
+        if (isAdded() && getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (loadingOverlay != null) {
+                    loadingOverlay.setVisibility(View.GONE);
+                }
+            });
+        }
+    }
+
+    private void showEmptyState(String message) {
+        if (isAdded() && getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (emptyView != null) {
+                    emptyView.setText(message);
+                    emptyView.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+    }
+
+    private void hideEmptyState() {
+        if (isAdded() && getActivity() != null) {
+            getActivity().runOnUiThread(() -> {
+                if (emptyView != null) {
+                    emptyView.setVisibility(View.GONE);
+                }
+            });
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
-        // Dismiss dialog if it's showing to prevent leaks
-        if (progressDialog != null && progressDialog.isShowing()) {
-            progressDialog.dismiss();
-        }
+        // Remove any pending timeout callbacks
+        timeoutHandler.removeCallbacks(timeoutRunnable);
     }
 }
